@@ -1,6 +1,7 @@
 /* eslint import/prefer-default-export: off */
-import { URL } from 'url';
+import { screen } from 'electron';
 import path from 'path';
+import { URL } from 'url';
 
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
@@ -10,4 +11,12 @@ export function resolveHtmlPath(htmlFileName: string) {
     return url.href;
   }
   return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
+}
+
+export function getScreenSize() {
+  const { size, scaleFactor } = screen.getPrimaryDisplay();
+  return {
+    width: size.width * scaleFactor,
+    height: size.height * scaleFactor,
+  };
 }

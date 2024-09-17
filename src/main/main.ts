@@ -8,11 +8,13 @@
  * When running `npm run build` or `npm run build:main`, this file is compiled to
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
-import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { app, BrowserWindow, ipcMain, Menu, shell, Tray } from 'electron';
 import log from 'electron-log';
+import { autoUpdater } from 'electron-updater';
+import path from 'path';
 import MenuBuilder from './menu';
+import run from './run';
+import screenshots from './screenshot';
 import { resolveHtmlPath } from './util';
 
 class AppUpdater {
@@ -39,9 +41,9 @@ if (process.env.NODE_ENV === 'production') {
 const isDebug =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
 
-if (isDebug) {
-  require('electron-debug')();
-}
+// if (isDebug) {
+//   require('electron-debug')();
+// }
 
 const installExtensions = async () => {
   const installer = require('electron-devtools-installer');
@@ -71,8 +73,8 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    width: 200,
+    height: 200,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged
@@ -124,14 +126,54 @@ app.on('window-all-closed', () => {
   }
 });
 
+let tray: Tray | null = null;
+function createTray() {
+  tray = new Tray(path.resolve('assets/icons/24x24.png'));
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show',
+      click() {
+        mainWindow?.show();
+      },
+    },
+    {
+      label: 'Quit',
+      click() {
+        app.quit();
+      },
+    },
+    {
+      label: 'Take a screenshot',
+      click() {
+        screenshots.runner?.startCapture();
+      },
+    },
+  ]);
+
+  tray.setToolTip('My Electron App');
+  tray.setContextMenu(contextMenu);
+}
+
 app
   .whenReady()
-  .then(() => {
-    createWindow();
-    app.on('activate', () => {
+  .then(async () => {
+    await createWindow();
+    createTray();
+
+    if (mainWindow) {
+      run(mainWindow);
+    }
+
+    app.on('activate', async () => {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
-      if (mainWindow === null) createWindow();
+      if (mainWindow === null) {
+        await createWindow();
+        if (mainWindow) {
+          run(mainWindow);
+        }
+      }
     });
   })
   .catch(console.log);
